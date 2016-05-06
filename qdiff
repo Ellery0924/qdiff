@@ -8,7 +8,7 @@ var exec = require('child_process').exec,
 var argv = process.argv.slice(2),
     type = argv[2];
 
-var rignore = /node_modules|\.git|dev|ver|prd|refs/,
+var rignore = /fekit_modules|node_modules|\.git|dev|ver|prd|refs/,
     rrequire = /require\s*\(\s*['"]\s*([^()"']+)\s*['"]\s*\)/,
     rrequireg = /require\s*\(\s*['"]\s*([^()"']+)\s*['"]\s*\)/g,
     rshortcut = /^\s*[^/]+\s*$/,
@@ -135,7 +135,10 @@ function lookUp(diff) {
 
     iterateDir(function (content, path) {
 
-        var deps = content.replace(rsinglelineComment, '').replace(rmultilineComment, '').match(rrequireg);
+        var deps = content
+            .replace(rsinglelineComment, '')
+            .replace(rmultilineComment, '')
+            .match(rrequireg);
 
         if (deps) {
 
