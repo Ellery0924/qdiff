@@ -5,6 +5,9 @@ var exec = require('child_process').exec,
     Path = require('path'),
     PWD = process.env.PWD;
 
+var argv = process.argv.slice(2),
+    type = argv[2];
+
 var rignore = /node_modules|\.git|dev|ver|prd|refs/,
     rrequire = /require\s*\(\s*['"]\s*([^()"']+)\s*['"]\s*\)/,
     rrequireg = /require\s*\(\s*['"]\s*([^()"']+)\s*['"]\s*\)/g,
@@ -106,7 +109,7 @@ function isAffected(dep, fileList, path, type, store) {
 
         if (required.match(rshortcut)) {
 
-            resolvedRequire = PWD + '/fekit_modules/' + required + '/src/index.js';
+            return;
         }
 
         if (resolvedRequire === indexReplacedPath || resolvedRequire === realModifedPath) {
