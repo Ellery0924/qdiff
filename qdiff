@@ -1,0 +1,170 @@
+#!/usr/bin/env node
+var exec = require('child_process').exec,
+    fs = require('fs'),
+    Path = require('path'),
+    PWD = process.env.PWD;
+
+var rignore = /node_modules|\.git|dev|ver|prd|refs/,
+    rrequire = /require\s*\(\s*['"]\s*([^()"']+)\s*['"]\s*\)/,
+    rrequireg = /require\s*\(\s*['"]\s*([^()"']+)\s*['"]\s*\)/g,
+    rshortcut = /^\s*[^/]+\s*$/,
+    rfilenameWithDash = /\/[^/]+$/,
+    rfilenameWithoutDash = /[^/]+$/,
+    rsinglelineComment = /\/\/\s*.*([\n\r]|$)/g,
+    rmultilineComment = /\/\s*\*(?:(?!(\*\s*\/)).|[\n\r])*(?:\*\s*\/)/g,
+    rtail = /\.(js|css)\s*$/g;
+
+function getAllAffectedFiles(output) {
+
+    return output.split(/[\n\r]|$/g);
+}
+
+function classify(renderedOutput) {
+
+    var modifiedFiles = [],
+        deletedFiles = [];
+
+    renderedOutput.forEach(function (filePath) {
+
+        if (fs.existsSync(filePath)) {
+
+            modifiedFiles.push(filePath);
+        }
+        else {
+
+            deletedFiles.push(filePath);
+        }
+    });
+
+    return {
+        modifiedFiles: modifiedFiles,
+        deletedFiles: deletedFiles
+    };
+}
+
+var iterateDir = (function () {
+
+    var counter = 0;
+
+    return function (callback, finalCallback, path) {
+
+        fs.readdir(path, function (err, files) {
+
+            if (err) {
+
+                if (fs.existsSync(path)) {
+
+                    counter++;
+
+                    fs.readFile(path, {encoding: 'utf8'}, function (err, content) {
+
+                        counter--;
+
+                        if (!err) {
+
+                            callback(content, path);
+
+                            if (counter === 0) {
+
+                                finalCallback();
+                            }
+                        }
+                        else {
+
+                            throw new Error(err);
+                        }
+                    });
+                }
+                return;
+            }
+
+            if (files.length) {
+
+                files.forEach(function (subPath) {
+
+                    if (!subPath.match(rignore)) {
+
+                        iterateDir(callback, finalCallback, path + '/' + subPath);
+                    }
+                });
+            }
+        });
+    }
+})();
+
+function isAffected(dep, fileList, path, type, store) {
+
+    var required = dep.match(rrequire)[1];
+
+    fileList.forEach(function (filePath) {
+
+        var cwd = path.replace(rfilenameWithDash, '');
+        var realModifedPath = Path.resolve(PWD, filePath).replace(rtail, '');
+        var indexReplacedPath = realModifedPath.replace(rfilenameWithoutDash, '').replace(rtail, '');
+        var resolvedRequire = Path.resolve(cwd, required).replace(rtail, '');
+
+        if (required.match(rshortcut)) {
+
+            resolvedRequire = PWD + '/fekit_modules/' + required + '/src/index.js';
+        }
+
+        if (resolvedRequire === indexReplacedPath || resolvedRequire === realModifedPath) {
+
+            if (store[filePath]) {
+
+                store[filePath].requiredIn.push(path);
+            }
+            else {
+
+                store[filePath] = {
+                    type: type,
+                    requiredIn: [path]
+                };
+            }
+        }
+    });
+}
+
+function lookUp(diff) {
+
+    var store = {};
+
+    iterateDir(function (content, path) {
+
+        var deps = content.replace(rsinglelineComment, '').replace(rmultilineComment, '').match(rrequireg);
+
+        if (deps) {
+
+            deps.forEach(function (dep) {
+
+                isAffected(dep, diff.modifiedFiles, path, 'modified', store);
+                isAffected(dep, diff.deletedFiles, path, 'deleted', store);
+            });
+        }
+    }, function () {
+
+        console.log(JSON.stringify(store, null, 4));
+    }, PWD);
+}
+
+function compose() {
+
+    var funcList = [].slice.call(arguments);
+
+    return function (arg, context) {
+
+        return funcList.reduce(function (ret, func) {
+
+            return func.call(context, ret);
+        }, arg);
+    }
+}
+
+exec('git diff --name-only master', {
+    maxBuffer: 20000 * 1024,
+    encoding: 'utf8',
+    cwd: PWD
+}, function (err, stdout) {
+
+    compose(getAllAffectedFiles, classify, lookUp)(stdout);
+});
