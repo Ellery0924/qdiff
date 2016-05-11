@@ -5,12 +5,13 @@ var exec = require('child_process').exec,
     Path = require('path'),
     PWD = process.env.PWD;
 
-var argv = process.argv.slice(2),
-    type = argv[2];
-
+//正则表达式
+//上帝保佑你能读懂
 var rignore = /fekit_modules|node_modules|\.git|dev|ver|prd|refs/,
-    rrequire = /require\s*\(\s*['"]\s*([^()"']+)\s*['"]\s*\)/,
-    rrequireg = /require\s*\(\s*['"]\s*([^()"']+)\s*['"]\s*\)/g,
+    rrequire = /require\s*\(\s*(['"])\s*([^()"']+)\s*\1\s*\)/,
+    rrequireg = /require\s*\(\s*(['"])\s*([^()"']+)\s*\1\s*\)/g,
+    rimport = /^\s*import\s.*\sfrom\s+(['"])([^'"]+)\1/,
+    rimportg = /^\s*import\s.*\sfrom\s+(['"])[^'"]+\1/g,
     rshortcut = /^\s*[^/]+\s*$/,
     rfilenameWithDash = /\/[^/]+$/,
     rfilenameWithoutDash = /[^/]+$/,
@@ -20,7 +21,11 @@ var rignore = /fekit_modules|node_modules|\.git|dev|ver|prd|refs/,
 
 function getAllAffectedFiles(output) {
 
-    return output.split(/[\n\r]|$/g);
+    return output
+        .split(/[\n\r]|$/g)
+        .filter(function (path) {
+            return !path.match(rignore);
+        });
 }
 
 function classify(renderedOutput) {
@@ -66,6 +71,7 @@ var iterateDir = (function () {
 
                         if (!err) {
 
+                            console.log('resolving:' + path);
                             callback(content, path);
 
                             if (counter === 0) {
@@ -98,7 +104,9 @@ var iterateDir = (function () {
 
 function isAffected(dep, fileList, path, type, store) {
 
-    var required = dep.match(rrequire)[1];
+    var reqMatch = dep.match(rrequire),
+        impMatch = dep.match(rimport),
+        required = reqMatch !== null ? reqMatch[2] : impMatch[2];
 
     fileList.forEach(function (filePath) {
 
@@ -135,12 +143,20 @@ function lookUp(diff) {
 
     iterateDir(function (content, path) {
 
-        var deps = content
-            .replace(rsinglelineComment, '')
-            .replace(rmultilineComment, '')
-            .match(rrequireg);
+        var deps;
 
-        if (deps) {
+        content = content
+            .replace(rsinglelineComment, '')
+            .replace(rmultilineComment, '');
+
+        deps = []
+            .concat(content.match(rrequireg))
+            .concat(content.match(rimportg))
+            .filter(function (dep) {
+                return dep !== null
+            });
+
+        if (deps.length > 0) {
 
             deps.forEach(function (dep) {
 
