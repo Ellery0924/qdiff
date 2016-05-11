@@ -71,7 +71,6 @@ var iterateDir = (function () {
 
                         if (!err) {
 
-                            console.log('resolving:' + path);
                             callback(content, path);
 
                             if (counter === 0) {
