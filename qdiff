@@ -10,12 +10,12 @@ var exec = require('child_process').exec,
 var rignore = /fekit_modules|node_modules|\.git|dev|ver|prd|refs/,
     rrequire = /require\s*\(\s*(['"])\s*([^()"']+)\s*\1\s*\)/,
     rrequireg = /require\s*\(\s*(['"])\s*([^()"']+)\s*\1\s*\)/g,
-    rimport = /^\s*import\s.*\sfrom\s+(['"])([^'"]+)\1/,
-    rimportg = /^\s*import\s.*\sfrom\s+(['"])[^'"]+\1/g,
+    rimport = /^\s*import\s+\S+\s+from\s+(['"])([^'"]+)\1/,
+    rimportg = /^\s*import\s+\S+\s+from\s+(['"])[^'"]+\1/g,
     rshortcut = /^\s*[^/]+\s*$/,
     rfilenameWithDash = /\/[^/]+$/,
     rfilenameWithoutDash = /[^/]+$/,
-    rsinglelineComment = /\/\/\s*.*([\n\r]|$)/g,
+    rsinglelineComment = /\/\/.*(?:[\n\r]|$)/g,
     rmultilineComment = /\/\s*\*(?:(?!(\*\s*\/)).|[\n\r])*(?:\*\s*\/)/g,
     rtail = /\.(js|css)\s*$/g;
 
@@ -179,7 +179,7 @@ function compose() {
 
             return func.call(context, ret);
         }, arg);
-    }
+    };
 }
 
 execSync('git pull origin master:master');
