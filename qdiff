@@ -5,17 +5,24 @@ var exec = require('child_process').exec,
     Path = require('path'),
     PWD = process.env.PWD;
 
+var fekitConfig, alias;
+
 //处理fekit alias
 if (fs.existsSync('./fekit.config')) {
 
-    var fekitConfig = JSON.parse(fs.readFileSync('./fekit.config'), {encoding: 'utf8'}),
-        alias;
+    try {
 
-    alias = Object.keys(fekitConfig.alias).reduce(function (acc, key) {
+        fekitConfig = JSON.parse(fs.readFileSync('./fekit.config'), {encoding: 'utf8'});
+        alias = Object.keys(fekitConfig.alias).reduce(function (acc, key) {
 
-        acc[key] = Path.resolve(PWD, fekitConfig.alias[key]);
-        return acc;
-    }, {});
+            acc[key] = Path.resolve(PWD, fekitConfig.alias[key]);
+            return acc;
+        }, {});
+    }
+    catch (e) {
+
+        alias = {};
+    }
 }
 
 //正则表达式
