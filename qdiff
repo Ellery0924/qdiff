@@ -5,13 +5,26 @@ var exec = require('child_process').exec,
     Path = require('path'),
     PWD = process.env.PWD;
 
+//处理fekit alias
+if (fs.existsSync('./fekit.config')) {
+
+    var fekitConfig = JSON.parse(fs.readFileSync('./fekit.config'), {encoding: 'utf8'}),
+        alias;
+
+    alias = Object.keys(fekitConfig.alias).reduce(function (acc, key) {
+
+        acc[key] = Path.resolve(PWD, fekitConfig.alias[key]);
+        return acc;
+    }, {});
+}
+
 //正则表达式
 //上帝保佑你能读懂
 var rignore = /fekit_modules|node_modules|\.git|dev|ver|prd|refs/,
     rrequire = /require\s*\(\s*(['"])\s*([^()"']+)\s*\1\s*\)/,
     rrequireg = /require\s*\(\s*(['"])\s*([^()"']+)\s*\1\s*\)/g,
-    rimport = /^\s*import\s+\S+\s+from\s+(['"])([^'"]+)\1/,
-    rimportg = /^\s*import\s+\S+\s+from\s+(['"])[^'"]+\1/g,
+    rimport = /^\s*import\s+(?:\S+\s+from\s+)?(['"])([^'"]+)\1/,
+    rimportg = /^\s*import\s+(?:\S+\s+from\s+)?(['"])[^'"]+\1/g,
     rshortcut = /^\s*[^/]+\s*$/,
     rfilenameWithDash = /\/[^/]+$/,
     rfilenameWithoutDash = /[^/]+$/,
@@ -106,6 +119,16 @@ function isAffected(dep, fileList, path, type, store) {
     var reqMatch = dep.match(rrequire),
         impMatch = dep.match(rimport),
         required = reqMatch !== null ? reqMatch[2] : impMatch[2];
+
+    Object.keys(alias).forEach(function (key) {
+
+        var aliasPath = alias[key];
+
+        if (required.search(key) !== -1) {
+
+            required = required.replace(key, aliasPath);
+        }
+    });
 
     fileList.forEach(function (filePath) {
 
